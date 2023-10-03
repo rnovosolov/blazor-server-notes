@@ -1,0 +1,71 @@
+﻿@page "/notes"
+@using BlazorServerNotes.Data;
+
+<h3>Notes</h3>
+
+@foreach (var note in notes)
+{
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5 class="card-title">@note.Title</h5>
+            <small class="text-muted">Created on @note.Created.ToString()</small>
+        </div>
+        <div class="card-body">
+            <p class="card-text" style="display: @noteDisplay[note.Id]">
+                @note.Content
+            </p>
+            <button class="btn btn-primary" @onclick="() => ToggleNoteDisplayAsync(note.Id)">
+                Toggle Note
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Note> notes = new List<Note>
+{
+    new Note { Id = 1, Title = "Note 1", Content = "This is the content of Note 1.", Created = DateTime.Now.AddMinutes(-30) },
+    new Note { Id = 2, Title = "Note 2", Content = "This is the content of Note 2.", Created = DateTime.Now.AddHours(-1) },
+    // Add more notes here as needed
+};
+
+    private Dictionary<int, string> noteDisplay;
+
+    protected override void OnInitialized()
+    {
+        // Initialize the noteDisplay dictionary with entries for each note
+        noteDisplay = new Dictionary<int, string>();
+        foreach (var note in notes)
+        {
+            noteDisplay[note.Id] = "none";
+        }
+    }
+
+    private void ToggleNoteDisplay(int noteId)
+    {
+        if (noteDisplay.ContainsKey(noteId) && noteDisplay[noteId] == "none")
+        {
+            noteDisplay[noteId] = "block";
+        }
+        else
+        {
+            noteDisplay[noteId] = "none";
+        }
+    }
+
+    private async Task ToggleNoteDisplayAsync(int noteId)
+    {
+        if (noteDisplay.ContainsKey(noteId) && noteDisplay[noteId] == "none")
+        {
+            noteDisplay[noteId] = "block";
+        }
+        else
+        {
+            noteDisplay[noteId] = "none";
+        }
+
+        // Use InvokeAsync to notify Blazor that the state has changed
+        await InvokeAsync(StateHasChanged);
+    }
+
+}

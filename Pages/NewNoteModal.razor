@@ -1,0 +1,53 @@
+﻿@using BlazorServerNotes.Interfaces;
+@using BlazorServerNotes.Services;
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Forms
+@inject INoteService _noteService;
+
+<EditForm Model="NewNote" OnValidSubmit="NoteAdded">
+    <DataAnnotationsValidator />
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="form-group">
+                <label for="titleInput">Title:</label>
+                <InputText @bind-Value="NewNote.Title" class="form-control" id="titleInput" />
+                @*Page-side validation for user*@
+                <ValidationMessage For="@(() => NewNote.Title)" />
+            </div>
+        </div>
+        <div class="col-md-12">
+            <div class="form-group">
+                <label for="contentInput">Content:</label>
+                <InputText @bind-Value="NewNote.Content" class="form-control" id="contentInput" />
+                @*Page-side validation for user*@
+                <ValidationMessage For="@(() => NewNote.Content)" />
+            </div>
+        </div>
+    </div>
+    <div class="form-group">
+        <button type="submit" class="btn btn-primary">Add</button>
+        <button type="reset" class="btn btn-secondary">Clear</button>
+    </div>
+</EditForm>
+
+@code {
+
+    [Parameter]
+    public required Action OnNoteAdded { get; set; }
+
+
+    private Note NewNote = new Note();
+
+    public void NoteAdded()
+    {
+        var newNote = NewNote;
+        newNote.Created = DateTime.Now;
+        NewNote = new Note();
+        _noteService.AddNote(newNote);
+
+        if (OnNoteAdded != null)
+        {
+            OnNoteAdded();
+        }
+    }
+}

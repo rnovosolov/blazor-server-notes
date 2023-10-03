@@ -1,0 +1,186 @@
+﻿@page "/"
+@using BlazorServerNotes.Data;
+@using BlazorServerNotes.Interfaces;
+@using BlazorServerNotes.Services;
+
+@inject ApplicationDbContext ApplicationDbContext
+@inject INoteService _noteService
+
+<PageTitle>Index</PageTitle>
+
+@*Show/hide New Note input form*@
+<button class="btn btn-primary mb-4" @onclick="ToggleNewNoteBlock">New Note</button>
+@if (showNewNoteBlock)
+{
+	<div class="border mb-4" style="padding: 20px;">
+		<h4>New Note</h4>
+		<NewNoteModal OnNoteAdded="RefreshNotes" />
+	</div>
+}
+
+@*Searchbar*@
+<div class="form-group mb-4">
+	<input type="text" class="form-control" value="@searchQuery" @onchange="FilterNotes" placeholder="Search by title or content" />
+</div>
+
+@if (notes != null && notes.Any())
+{
+	@foreach (var note in filteredNotes)
+	{
+		@*Note card*@
+		<div class="card mb-3">
+			<div class="card-header">
+				<div class="row">
+					<div class="col-3">
+						<h5 class="card-title">@note.Title</h5>
+					</div>
+					<div class="col-6">
+						<small class="text-muted">Created on @note.Created.ToString()</small>
+					</div>
+					<div class="col-3 text-right">
+						<button class="btn btn-primary" @onclick="() => ToggleNoteDisplayAsync(note.Id)">
+							Toggle Note
+						</button>
+						<button class="btn btn-secondary" @onclick="() => StartEditing(note.Id)">
+							Edit
+						</button>
+						<button class="btn btn-danger" @onclick="() => DeleteNote(note.Id)">
+							Delete
+						</button>
+					</div>
+				</div>
+			</div>
+
+			<div class="card-body">
+				@if (noteEditingId != note.Id)
+				{
+					<p class="card-text" style="display: @noteDisplay[note.Id]">
+						@note.Content
+					</p>
+				}
+				else
+				{
+					<textarea @bind="editedNoteContent" class="form-control"></textarea>
+					<button class="btn btn-success" @onclick="() => SaveNoteEdit(note.Id)">Save</button>
+					<button class="btn btn-secondary" @onclick="CancelEdit">Cancel</button>
+				}
+			</div>
+		</div>
+	}
+}
+else
+{
+	<p>No notes found.</p>
+}
+
+
+@code {
+	private List<Note> notes;
+	private List<Note> filteredNotes;
+
+	private Dictionary<int, string> noteDisplay;
+
+	private int noteEditingId = -1;
+	private string editedNoteContent = "";
+	private bool showNewNoteBlock = false;
+	private string searchQuery { get; set; } = "";
+
+	protected override async Task OnInitializedAsync()
+	{
+		RefreshNotes();
+	}
+
+	private void RefreshNotes()
+	{
+		try
+		{
+			notes = _noteService.GetNotes().Reverse().ToList(); // Reverse makes recent notes appear on top
+			filteredNotes = notes;
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine(ex);
+		}
+
+		noteDisplay = new Dictionary<int, string>();
+		if (notes != null && notes.Any())
+		{
+			foreach (var note in notes)
+			{
+				noteDisplay[note.Id] = "none";
+			}
+		}
+		StateHasChanged();
+	}
+
+	private async Task ToggleNoteDisplayAsync(int noteId)
+	{
+		if (noteDisplay.ContainsKey(noteId) && noteDisplay[noteId] == "none")
+		{
+			noteDisplay[noteId] = "block";
+		}
+		else
+		{
+			noteDisplay[noteId] = "none";
+		}
+
+		await InvokeAsync(StateHasChanged);
+	}
+
+	private void ToggleNewNoteBlock()
+	{
+		showNewNoteBlock = !showNewNoteBlock;
+	}
+
+	private void FilterNotes(ChangeEventArgs e)
+	{
+		searchQuery = e.Value.ToString();
+
+		if (string.IsNullOrWhiteSpace(searchQuery))
+		{
+			// If the search query is empty, show all notes
+			filteredNotes = notes;
+		}
+		else
+		{
+			// Filter notes based on the search query
+			filteredNotes = notes.Where(note =>
+				note.Title.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+				note.Content.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)
+			).ToList();
+		}
+	}
+
+	private void StartEditing(int noteId)
+	{
+		noteEditingId = noteId;
+		editedNoteContent = notes.FirstOrDefault(n => n.Id == noteId)?.Content;
+	}
+
+	private async Task SaveNoteEdit(int noteId)
+	{
+		var note = notes.FirstOrDefault(n => n.Id == noteId);
+		if (note != null)
+		{
+			note.Content = editedNoteContent;
+			_noteService.UpdateNote(note);
+		}
+
+		noteEditingId = -1;
+	}
+
+	private void CancelEdit()
+	{
+		noteEditingId = -1;
+	}
+
+	private void DeleteNote(int noteId)
+	{
+		if (noteId >= 0)
+		{
+			_noteService.DeleteNote(noteId);
+		}
+
+		RefreshNotes();
+	}
+}
